@@ -82,8 +82,15 @@ data class Place(
     val lng: Double,
     val address: String? = null,
     val source: String,
+    /** True when the coordinates point at the named spot itself, not just its town or region. */
+    val exact: Boolean = false,
+    /** What Google Maps should search for to land on the exact spot ("Jog Falls, Shivamogga, Karnataka"). */
+    val mapsQuery: String? = null,
+    /** Why the AI thinks this is the place (sign it read, landmark it saw…). */
+    val evidence: String? = null,
 ) {
-    val key: String get() = "${"%.3f".format(java.util.Locale.US, lat)},${"%.3f".format(java.util.Locale.US, lng)}"
+    val key: String
+        get() = "${"%.3f".format(java.util.Locale.US, lat)},${"%.3f".format(java.util.Locale.US, lng)}|${name.lowercase().trim()}"
 }
 
 data class Spot(
@@ -96,6 +103,7 @@ data class Spot(
     val username: String?,
     val thumbnailUrl: String?,
     val savedAt: Long,
+    val mapsQuery: String? = null,
 )
 
 enum class AiProvider { NONE, GEMINI, CLAUDE }

@@ -114,13 +114,45 @@ object Http {
             }
         }
 
-    suspend fun postJson(url: String, json: JSONObject, headers: Map<String, String>): Result =
+    /** For AI calls that upload video/images and can take a while to answer. */
+    private val slowClient: OkHttpClient by lazy {
+        client.newBuilder().writeTimeout(120, TimeUnit.SECONDS).readTimeout(180, TimeUnit.SECONDS).build()
+    }
+
+    /** Downloads a URL into [file], refusing anything larger than [maxBytes]. */
+    suspend fun download(url: String, file: java.io.File, maxBytes: Long, headers: Map<String, String> = emptyMap()): Long =
+        withContext(Dispatchers.IO) {
+            val req = Request.Builder().url(url).apply {
+                header("User-Agent", BROWSER_UA)
+                headers.forEach { (k, v) -> header(k, v) }
+            }.build()
+            slowClient.newCall(req).execute().use { resp ->
+                if (!resp.isSuccessful) throw IOException("HTTP ${resp.code}")
+                val body = resp.body ?: throw IOException("empty")
+                var total = 0L
+                body.byteStream().use { input ->
+                    file.outputStream().use { out ->
+                        val buf = ByteArray(64 * 1024)
+                        while (true) {
+                            val n = input.read(buf)
+                            if (n < 0) break
+                            total += n
+                            if (total > maxBytes) throw IOException("file too large")
+                            out.write(buf, 0, n)
+                        }
+                    }
+                }
+                total
+            }
+        }
+
+    suspend fun postJson(url: String, json: JSONObject, headers: Map<String, String>, slow: Boolean = false): Result =
         withContext(Dispatchers.IO) {
             val req = Request.Builder().url(url)
                 .post(json.toString().toRequestBody("application/json".toMediaType()))
                 .apply { headers.forEach { (k, v) -> header(k, v) } }
                 .build()
-            client.newCall(req).execute().use { resp ->
+            (if (slow) slowClient else client).newCall(req).execute().use { resp ->
                 Result(resp.code, resp.body?.string().orEmpty(), resp.request.url.toString())
             }
         }

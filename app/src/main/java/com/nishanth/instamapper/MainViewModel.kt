@@ -59,6 +59,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     var places by mutableStateOf<List<Place>?>(null); private set
     var placesLoading by mutableStateOf(false); private set
     var placeMessage by mutableStateOf<String?>(null); private set
+    var placeProgress by mutableStateOf<String?>(null); private set
+    var placeNote by mutableStateOf<String?>(null); private set
     var selectedPlace by mutableStateOf<Place?>(null)
     var placeSheet by mutableStateOf<PlaceAction?>(null)
 
@@ -152,7 +154,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun resetPlaceState() {
-        places = null; selectedPlace = null; placeSheet = null; placeMessage = null
+        places = null; selectedPlace = null; placeSheet = null; placeMessage = null; placeNote = null
         season = null; seasonError = null; showSeason = false; showAudio = false
     }
 
@@ -169,9 +171,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         placeMessage = null
         viewModelScope.launch {
             try {
-                val found = PlaceResolver.resolve(getApplication<Application>(), r, settings)
+                val res = PlaceResolver.resolve(getApplication<Application>(), r, settings) { step ->
+                    viewModelScope.launch { placeProgress = step }
+                }
+                val found = res.places
                 places = found
                 if (selectedPlace == null) selectedPlace = found.firstOrNull()
+                placeNote = res.note
                 if (found.isEmpty()) placeMessage = "Couldn't work out the place from this reel. Search for it below."
             } catch (e: CancellationException) {
                 throw e
@@ -180,8 +186,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 placeMessage = "Place lookup failed: ${e.message}. Try searching below."
             } finally {
                 placesLoading = false
+                placeProgress = null
             }
         }
+    }
+
+    /** Throw away the detected places and look again (e.g. after adding an AI key). */
+    fun retryPlaces() {
+        places = null
+        selectedPlace = null
+        placeNote = null
+        resolvePlaces()
     }
 
     fun searchPlace(query: String) {
@@ -210,6 +225,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             name = p.name, lat = p.lat, lng = p.lng, address = p.address,
             reelUrl = r?.url.orEmpty(), username = r?.username, thumbnailUrl = r?.thumbnailUrl,
             savedAt = System.currentTimeMillis(),
+            mapsQuery = p.mapsQuery,
         )
         spots = listOf(spot) + spots.filterNot { it.reelUrl == spot.reelUrl && it.name == spot.name }
         spotStore.save(spots)

@@ -21,9 +21,18 @@ object Actions {
         }
     }
 
-    fun mapsUrl(p: Place) = "https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}"
+    /** Searching by name lands Google Maps on the exact spot; coordinates are the fallback. */
+    fun mapsUrl(p: Place): String {
+        val q = p.mapsQuery?.takeIf { it.isNotBlank() }
+        return if (q != null) "https://www.google.com/maps/search/?api=1&query=${Uri.encode(q)}"
+        else "https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}"
+    }
 
     fun openInMaps(ctx: Context, p: Place) {
+        if (!p.mapsQuery.isNullOrBlank()) {
+            openUrl(ctx, mapsUrl(p))
+            return
+        }
         val geo = Uri.parse("geo:${p.lat},${p.lng}?q=${p.lat},${p.lng}(${Uri.encode(p.name)})")
         try {
             ctx.startActivity(Intent(Intent.ACTION_VIEW, geo))
@@ -32,8 +41,10 @@ object Actions {
         }
     }
 
-    fun directions(ctx: Context, p: Place) =
-        openUrl(ctx, "https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}")
+    fun directions(ctx: Context, p: Place) {
+        val dest = p.mapsQuery?.takeIf { it.isNotBlank() }?.let { Uri.encode(it) } ?: "${p.lat},${p.lng}"
+        openUrl(ctx, "https://www.google.com/maps/dir/?api=1&destination=$dest")
+    }
 
     fun nearby(ctx: Context, p: Place, what: String) =
         openUrl(ctx, "https://www.google.com/maps/search/${Uri.encode(what)}/@${p.lat},${p.lng},14z")

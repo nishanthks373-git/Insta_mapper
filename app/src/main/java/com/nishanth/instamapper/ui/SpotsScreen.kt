@@ -225,7 +225,7 @@ private fun SmallRound(emoji: String, onClick: () -> Unit) {
     ) { Text(emoji, fontSize = 16.sp) }
 }
 
-private fun Spot.toPlace() = Place(name, lat, lng, address, "Saved")
+private fun Spot.toPlace() = Place(name, lat, lng, address, "Saved", exact = true, mapsQuery = mapsQuery)
 
 @Composable
 private fun SpotsMap(spots: List<Spot>, focusedId: String?, modifier: Modifier) {

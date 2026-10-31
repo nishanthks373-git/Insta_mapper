@@ -335,9 +335,16 @@ private fun PlaceSheet(vm: MainViewModel, action: PlaceAction, reel: ReelInfo, o
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.width(10.dp))
-                    Text("Finding the spot…", color = MaterialTheme.colorScheme.primary)
+                    Text(vm.placeProgress ?: "Finding the spot…", color = MaterialTheme.colorScheme.primary)
                 }
                 LinearProgressIndicator(Modifier.fillMaxWidth().clip(RoundedCornerShape(50)))
+                if (vm.settings.aiEnabled) {
+                    Text(
+                        "The AI is watching the video and reading the caption. This can take 10–40 seconds.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
 
             vm.selectedPlace?.let { PlacePreviewMap(it) }
@@ -354,14 +361,42 @@ private fun PlaceSheet(vm: MainViewModel, action: PlaceAction, reel: ReelInfo, o
                     Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(selected = selected, onClick = { vm.selectedPlace = p })
                         Column(Modifier.weight(1f)) {
-                            Text(p.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    p.name,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.weight(1f, fill = false),
+                                )
+                                if (p.exact) SolidPill("📍 Exact spot", Palette.mint) else Pill("Area only", MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                             p.address?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+                            p.evidence?.let {
+                                Text("🔎 $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                             Text(p.source, style = MaterialTheme.typography.labelSmall, color = accent, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
             }
             vm.placeMessage?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error) }
+            if (!vm.placesLoading) {
+                vm.placeNote?.let { note ->
+                    TintCard(if (vm.settings.aiEnabled) Palette.sunset else Palette.grape) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(note, style = MaterialTheme.typography.bodySmall)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                if (!vm.settings.aiEnabled) {
+                                    TextButton(onClick = { onDismiss(); vm.tab = com.nishanth.instamapper.Tab.SETTINGS }) {
+                                        Text("Add AI key", fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                                TextButton(onClick = { vm.retryPlaces() }) { Text("Look again") }
+                            }
+                        }
+                    }
+                }
+            }
 
             OutlinedTextField(
                 value = query,

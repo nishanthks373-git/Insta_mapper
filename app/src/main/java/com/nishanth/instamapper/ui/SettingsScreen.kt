@@ -114,8 +114,9 @@ fun SettingsScreen(vm: MainViewModel) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SectionTitle("AI assistant (optional)", "✨")
                     Text(
-                        "Better place detection from captions, plus local tips (festivals, crowds) in the best-time report. " +
-                            "Each person uses their own key. Gemini has a free tier.",
+                        "Finds the EXACT spot: the AI watches the reel (on-screen text, signboards, landmarks, narration) " +
+                            "and reads the caption, then the app pins that specific place. Also adds local tips to the best-time report. " +
+                            "Gemini is recommended: it has a free tier and can watch the whole video. Each person uses their own key.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

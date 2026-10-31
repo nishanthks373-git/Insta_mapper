@@ -106,6 +106,7 @@ class SpotStore(private val context: Context) {
                 username = o.str("username"),
                 thumbnailUrl = o.str("thumbnailUrl"),
                 savedAt = o.optLong("savedAt"),
+                mapsQuery = o.str("mapsQuery"),
             )
         }
     }.getOrDefault(emptyList())
@@ -121,6 +122,7 @@ class SpotStore(private val context: Context) {
                     .put("username", s.username ?: JSONObject.NULL)
                     .put("thumbnailUrl", s.thumbnailUrl ?: JSONObject.NULL)
                     .put("savedAt", s.savedAt)
+                    .put("mapsQuery", s.mapsQuery ?: JSONObject.NULL)
             )
         }
         file.writeText(arr.toString())
