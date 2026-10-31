@@ -15,6 +15,10 @@ import com.nishanth.instamapper.data.PlaceResolver
 import com.nishanth.instamapper.data.RecentReel
 import com.nishanth.instamapper.data.RecentStore
 import com.nishanth.instamapper.data.Updates
+import com.nishanth.instamapper.data.Diagnostics
+import com.nishanth.instamapper.data.NO_CONNECTION_HELP
+import com.nishanth.instamapper.data.NoConnectionException
+import com.nishanth.instamapper.data.isNetworkProblem
 import com.nishanth.instamapper.data.ReelInfo
 import com.nishanth.instamapper.data.SeasonReport
 import com.nishanth.instamapper.data.SettingsRepo
@@ -70,6 +74,25 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     var update by mutableStateOf<Updates.Info?>(null); private set
     var focusedSpotId by mutableStateOf<String?>(null)
 
+    var errorIsNetwork by mutableStateOf(false); private set
+    var diagnostics by mutableStateOf<Diagnostics.Report?>(null); private set
+    var diagnosticsRunning by mutableStateOf(false); private set
+    var showDiagnostics by mutableStateOf(false)
+
+    fun runDiagnostics() {
+        showDiagnostics = true
+        if (diagnosticsRunning) return
+        diagnosticsRunning = true
+        diagnostics = null
+        viewModelScope.launch {
+            try {
+                diagnostics = Diagnostics.run(getApplication<Application>())
+            } finally {
+                diagnosticsRunning = false
+            }
+        }
+    }
+
     init {
         viewModelScope.launch { update = Updates.check() }
     }
@@ -93,6 +116,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val id = ++requestId
         loading = true
         error = null
+        errorIsNetwork = false
         reel = null
         resetPlaceState()
         viewModelScope.launch {
@@ -105,7 +129,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                if (id == requestId) error = e.message ?: "Something went wrong"
+                if (id == requestId) {
+                    errorIsNetwork = e is NoConnectionException || e.isNetworkProblem()
+                    error = if (errorIsNetwork && e !is NoConnectionException) NO_CONNECTION_HELP
+                    else e.message ?: "Something went wrong"
+                }
             } finally {
                 if (id == requestId) loading = false
             }

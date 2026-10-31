@@ -6,6 +6,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import coil.Coil
+import coil.ImageLoader
+import com.nishanth.instamapper.data.Http
 import com.nishanth.instamapper.ui.AppRoot
 import com.nishanth.instamapper.ui.InstaMapperTheme
 
@@ -15,6 +18,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Thumbnails use the same DNS fallback as the rest of the app.
+        Coil.setImageLoader(ImageLoader.Builder(applicationContext).okHttpClient { Http.client }.crossfade(true).build())
         if (savedInstanceState == null) handleShare(intent)
         setContent {
             InstaMapperTheme {

@@ -165,11 +165,23 @@ fun HomeScreen(vm: MainViewModel) {
                     LoadingTicker()
                 }
                 AnimatedVisibility(vm.error != null, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-                    Box(
+                    Column(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
-                            .background(MaterialTheme.colorScheme.errorContainer).padding(14.dp)
+                            .background(MaterialTheme.colorScheme.errorContainer).padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Text("😕 ${vm.error.orEmpty()}", color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            (if (vm.errorIsNetwork) "📡 " else "😕 ") + vm.error.orEmpty(),
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick = { vm.analyze() }) { Text("Try again", fontWeight = FontWeight.Bold) }
+                            if (vm.errorIsNetwork) {
+                                TextButton(onClick = { vm.runDiagnostics() }) { Text("Check connection", fontWeight = FontWeight.Bold) }
+                                TextButton(onClick = { openAppSettings(ctx) }) { Text("App settings") }
+                            }
+                        }
                     }
                 }
             }

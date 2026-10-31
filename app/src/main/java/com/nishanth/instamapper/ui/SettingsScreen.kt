@@ -192,6 +192,9 @@ fun SettingsScreen(vm: MainViewModel) {
                         enabled = !checking,
                         modifier = Modifier.fillMaxWidth(),
                     ) { Text(if (checking) "Checking…" else "Check for updates") }
+                    OutlinedButton(onClick = { vm.runDiagnostics() }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Check connection")
+                    }
                     OutlinedButton(onClick = { vm.showOnboarding = true }, modifier = Modifier.fillMaxWidth()) {
                         Text("Show the intro again")
                     }

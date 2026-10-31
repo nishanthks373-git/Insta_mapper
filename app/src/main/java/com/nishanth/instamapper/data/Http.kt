@@ -3,14 +3,72 @@ package com.nishanth.instamapper.data
 import android.webkit.CookieManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.Dns
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.dnsoverhttps.DnsOverHttps
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
+import java.net.ConnectException
+import java.net.InetAddress
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLException
+
+/**
+ * Uses the phone's normal DNS first. If that can't find a host (some networks, VPNs, ad-blockers or
+ * "Private DNS" settings block Instagram), it retries through Cloudflare / Google DNS-over-HTTPS.
+ */
+object FallbackDns : Dns {
+    private val bootstrap by lazy {
+        OkHttpClient.Builder().connectTimeout(8, TimeUnit.SECONDS).readTimeout(8, TimeUnit.SECONDS).build()
+    }
+
+    private val resolvers: List<Dns> by lazy {
+        listOf(
+            DnsOverHttps.Builder().client(bootstrap)
+                .url("https://cloudflare-dns.com/dns-query".toHttpUrl())
+                .bootstrapDnsHosts(InetAddress.getByName("1.1.1.1"), InetAddress.getByName("1.0.0.1"))
+                .build(),
+            DnsOverHttps.Builder().client(bootstrap)
+                .url("https://dns.google/dns-query".toHttpUrl())
+                .bootstrapDnsHosts(InetAddress.getByName("8.8.8.8"), InetAddress.getByName("8.8.4.4"))
+                .build(),
+        )
+    }
+
+    override fun lookup(hostname: String): List<InetAddress> = try {
+        Dns.SYSTEM.lookup(hostname)
+    } catch (e: UnknownHostException) {
+        for (r in resolvers) {
+            try {
+                val found = r.lookup(hostname)
+                if (found.isNotEmpty()) return found
+            } catch (_: Exception) {
+            }
+        }
+        throw e
+    }
+}
+
+/** True for errors that mean "couldn't reach the server at all", not "the server said no". */
+fun Throwable.isNetworkProblem(): Boolean =
+    this is UnknownHostException || this is ConnectException || this is SocketTimeoutException ||
+        this is SSLException || cause?.isNetworkProblem() == true
+
+class NoConnectionException(message: String) : IOException(message)
+
+const val NO_CONNECTION_HELP =
+    "Insta Mapper couldn't reach Instagram — the phone blocked or couldn't look up instagram.com.\n\n" +
+        "Please check:\n" +
+        "• Settings → Apps → Insta Mapper → Mobile data & Wi‑Fi: allow both\n" +
+        "• Turn off any VPN, ad-blocker or Private DNS (Settings → Network → Private DNS → Automatic)\n" +
+        "• Then tap Try again. \"Check connection\" shows exactly what's blocked."
 
 object Http {
     const val BROWSER_UA =
@@ -22,6 +80,7 @@ object Http {
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(40, TimeUnit.SECONDS)
             .followRedirects(true)
+            .dns(FallbackDns)
             .build()
     }
 

@@ -48,6 +48,8 @@ fun AppRoot(vm: MainViewModel) {
         vm.toast?.let { Actions.toast(ctx, it); vm.toast = null }
     }
 
+    if (vm.showDiagnostics) DiagnosticsDialog(vm)
+
     if (vm.showOnboarding) {
         OnboardingScreen(
             onFinish = { vm.finishOnboarding() },

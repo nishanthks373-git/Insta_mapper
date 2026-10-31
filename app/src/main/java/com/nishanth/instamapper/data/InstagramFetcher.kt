@@ -31,26 +31,35 @@ object InstagramFetcher {
     suspend fun fetch(input: String): ReelInfo = withContext(Dispatchers.IO) {
         val link = extractUrl(input.trim())
             ?: throw IllegalArgumentException("That doesn't look like an Instagram link.")
-        val code = shortcodeOf(link) ?: resolveShareLink(link)
+        val code = shortcodeOf(link)
+            ?: try {
+                resolveShareLink(link)
+            } catch (e: Exception) {
+                if (e.isNetworkProblem()) throw NoConnectionException(NO_CONNECTION_HELP) else throw e
+            }
             ?: throw IllegalArgumentException("Couldn't find the reel ID in that link.")
 
         val canonical = "https://www.instagram.com/reel/$code/"
         var info = ReelInfo(url = canonical, shortcode = code)
         val errors = mutableListOf<String>()
+        val failures = mutableListOf<Throwable>()
 
         if (isLoggedIn()) {
             runCatching { info = info.merge(fromApi(code, canonical)) }
-                .onFailure { errors += "api: ${it.message}" }
+                .onFailure { errors += "api: ${it.message}"; failures += it }
         }
         if (!info.isComplete) {
             runCatching { info = info.merge(fromPage(code, canonical)) }
-                .onFailure { errors += "page: ${it.message}" }
+                .onFailure { errors += "page: ${it.message}"; failures += it }
         }
         if (!info.isComplete) {
             runCatching { info = info.merge(fromEmbed(code)) }
-                .onFailure { errors += "embed: ${it.message}" }
+                .onFailure { errors += "embed: ${it.message}"; failures += it }
         }
 
+        if (info.isEmpty && failures.isNotEmpty() && failures.all { it.isNetworkProblem() }) {
+            throw NoConnectionException(NO_CONNECTION_HELP)
+        }
         if (info.isEmpty) {
             throw IOException(
                 "Instagram didn't share any details for this reel. It may be private or Instagram is " +
