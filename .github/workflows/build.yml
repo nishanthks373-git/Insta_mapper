@@ -1,0 +1,58 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build APK
+        run: |
+          chmod +x gradlew
+          set -o pipefail
+          ./gradlew assembleDebug --stacktrace 2>&1 | tee build.log
+
+      - name: Report build errors
+        if: failure()
+        run: |
+          if grep -qE "^e: " build.log; then
+            grep -E "^e: " build.log | head -10 | sed 's/^/::error::/'
+          else
+            msg=$(grep -A12 "What went wrong" build.log | head -25 | tr '\n' '|')
+            echo "::error::${msg:-Build failed, see log}"
+          fi
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk InstaMapper.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: InstaMapper-apk
+          path: InstaMapper.apk
+
+      - name: Publish to the "latest" release
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest InstaMapper.apk \
+            --title "Insta Mapper (latest build)" \
+            --notes "Built automatically from commit ${GITHUB_SHA::7}. Download InstaMapper.apk on your phone and install it." \
+            --target "$GITHUB_SHA"
