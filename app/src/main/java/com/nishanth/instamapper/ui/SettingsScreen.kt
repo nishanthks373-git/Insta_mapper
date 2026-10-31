@@ -6,6 +6,16 @@ import android.webkit.CookieManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import com.nishanth.instamapper.BuildConfig
+import com.nishanth.instamapper.data.Updates
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -52,24 +62,35 @@ import com.nishanth.instamapper.data.AiProvider
 import com.nishanth.instamapper.data.AppSettings
 import com.nishanth.instamapper.data.InstagramFetcher
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(vm: MainViewModel) {
     val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
     var provider by remember(vm.settings) { mutableStateOf(vm.settings.provider) }
     var key by remember(vm.settings) { mutableStateOf(vm.settings.apiKey) }
     var model by remember(vm.settings) { mutableStateOf(vm.settings.model) }
+    var checking by remember { mutableStateOf(false) }
 
-    Column(Modifier.fillMaxSize()) {
-        TopAppBar(title = { Text("Settings") })
-        Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
+                .background(animatedBrush(Palette.grape + Palette.candy))
+                .statusBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 20.dp),
         ) {
+            Column {
+                Text("Settings", color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
+                Text("Version ${BuildConfig.VERSION_NAME}", color = Color.White.copy(alpha = 0.88f))
+            }
+        }
+
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             // Instagram account
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Instagram", style = MaterialTheme.typography.titleMedium)
+            TintCard(Palette.insta) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionTitle("Instagram", "📸")
                     Text(
                         if (vm.loggedIn) "✅ Signed in. Reels load with location tag, audio and video."
                         else "Not signed in. Only the caption and thumbnail are available for most reels.",
@@ -83,24 +104,24 @@ fun SettingsScreen(vm: MainViewModel) {
                     if (vm.loggedIn) {
                         OutlinedButton(onClick = { vm.logout() }) { Text("Sign out") }
                     } else {
-                        Button(onClick = { vm.showLogin = true }) { Text("Sign in to Instagram") }
+                        GradientButton("Sign in to Instagram", Modifier.fillMaxWidth(), Palette.insta) { vm.showLogin = true }
                     }
                 }
             }
 
             // AI
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("AI assistant (optional)", style = MaterialTheme.typography.titleMedium)
+            TintCard(Palette.grape) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionTitle("AI assistant (optional)", "✨")
                     Text(
-                        "Improves place detection from captions and adds local tips (festivals, crowds) to the best-time report. " +
-                            "Gemini has a free tier: get a key at aistudio.google.com.",
+                        "Better place detection from captions, plus local tips (festivals, crowds) in the best-time report. " +
+                            "Each person uses their own key. Gemini has a free tier.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     listOf(
                         AiProvider.NONE to "Off",
-                        AiProvider.GEMINI to "Google Gemini",
+                        AiProvider.GEMINI to "Google Gemini (free tier)",
                         AiProvider.CLAUDE to "Anthropic Claude",
                     ).forEach { (p, label) ->
                         Row(
@@ -117,6 +138,7 @@ fun SettingsScreen(vm: MainViewModel) {
                             onValueChange = { key = it },
                             label = { Text("API key") },
                             singleLine = true,
+                            shape = RoundedCornerShape(14.dp),
                             visualTransformation = PasswordVisualTransformation(),
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -126,23 +148,60 @@ fun SettingsScreen(vm: MainViewModel) {
                             label = { Text("Model (optional)") },
                             placeholder = { Text(AppSettings(provider = provider).effectiveModel) },
                             singleLine = true,
+                            shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        if (provider == AiProvider.GEMINI) {
-                            TextButton(onClick = { Actions.openUrl(ctx, "https://aistudio.google.com/apikey") }) {
-                                Text("Get a free Gemini key")
-                            }
-                        }
+                        TextButton(onClick = {
+                            Actions.openUrl(
+                                ctx,
+                                if (provider == AiProvider.GEMINI) "https://aistudio.google.com/apikey" else "https://console.anthropic.com/settings/keys",
+                            )
+                        }) { Text(if (provider == AiProvider.GEMINI) "Get a free Gemini key →" else "Get a Claude API key →") }
                     }
-                    Button(onClick = { vm.updateSettings(AppSettings(provider, key, model)) }) { Text("Save") }
+                    GradientButton("Save", Modifier.fillMaxWidth(), Palette.grape) {
+                        vm.updateSettings(AppSettings(provider, key, model))
+                    }
                 }
             }
 
-            HorizontalDivider()
+            // App
+            TintCard(Palette.mint) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SectionTitle("Share & updates", "🚀")
+                    GradientButton("📤 Share Insta Mapper with friends", Modifier.fillMaxWidth(), Palette.mint) {
+                        Actions.share(
+                            ctx,
+                            "Check out Insta Mapper — turn Instagram travel reels into places on your map, " +
+                                "best time to visit, songs and more. Download the Android app: ${BuildConfig.RELEASES_URL}",
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            checking = true
+                            scope.launch {
+                                val u = Updates.check()
+                                checking = false
+                                if (u != null) {
+                                    Actions.toast(ctx, "Version ${u.version} is available")
+                                    Actions.openUrl(ctx, u.apkUrl ?: BuildConfig.RELEASES_URL)
+                                } else {
+                                    Actions.toast(ctx, "You're on the latest version 🎉")
+                                }
+                            }
+                        },
+                        enabled = !checking,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(if (checking) "Checking…" else "Check for updates") }
+                    OutlinedButton(onClick = { vm.showOnboarding = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Show the intro again")
+                    }
+                }
+            }
+
             Text(
                 "Insta Mapper reads public reel information for personal trip planning. Please respect creators: " +
                     "credit them when sharing and don't re-upload downloaded videos. Map data © OpenStreetMap contributors. " +
-                    "Weather data: Open-Meteo.",
+                    "Weather data: Open-Meteo. Not affiliated with Instagram or Meta.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

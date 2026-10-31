@@ -14,15 +14,27 @@ things to do with it:
 | 🎵 **Find original audio** | Shows the song/artist or "original audio" creator, opens the Instagram audio page (the oldest reel there is the original), searches Spotify / YouTube Music / YouTube, or launches Shazam. |
 | 🧭 Directions · 🏨 Stays & food nearby · 📤 Share spot · 🔤 Translate caption · 📋 Copy caption · ▶️ Open in Instagram | Quick hand-offs to the right app. |
 
-## Install the APK
+## Install / share the APK
 
-Every push to `main` is built by GitHub Actions.
+Every push to `main` is built by GitHub Actions into an optimised release APK.
 
-1. Open the repo's **Releases → "Insta Mapper (latest build)"** on your phone.
-2. Download `InstaMapper.apk` and open it (allow "Install unknown apps" for your browser if asked).
+* **Download link (always the newest build):**
+  https://github.com/nishanthks373-git/Insta_mapper/releases/latest
+* Send that link (or the `InstaMapper.apk` file itself, e.g. over WhatsApp) to anyone with an
+  Android 8.0+ phone. They open it and tap Install (allowing "Install unknown apps" if asked).
+* Inside the app, **Settings → Share Insta Mapper** sends the link, and the home screen shows a
+  banner when a newer version is available.
+* Nothing in the app is tied to one person: every user signs in with their own Instagram account
+  (optional), keeps their own spots on their phone, and can add their own free Gemini key.
+  Temperatures switch to °F and translations go to the phone's language automatically.
 
-All builds are signed with the same key (`app/instamapper.keystore`), so new builds install as
-updates over the old one.
+### Signing key
+
+Builds are signed with `app/instamapper.keystore` (committed) so new versions install as updates.
+Because the repo is public, anyone could sign an APK with that key. Before sharing widely, switch to a
+private key stored in GitHub Secrets – the workflow uses it automatically when these secrets exist:
+`SIGNING_KEYSTORE_BASE64`, `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD`.
+(Note: people who installed a build signed with the old key must uninstall once when you switch.)
 
 ## Getting the best results
 
@@ -61,7 +73,7 @@ Open the folder in Android Studio (Ladybug or newer) and run, or:
 ./gradlew assembleDebug   # APK at app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Requires JDK 17+. Min Android version: 10 (API 29).
+Requires JDK 17+. Min Android version: 8.0 (API 26).
 
 ## Notes
 

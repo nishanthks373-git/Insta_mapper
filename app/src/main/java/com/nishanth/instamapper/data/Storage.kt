@@ -23,6 +23,68 @@ class SettingsRepo(context: Context) {
             .putString("model", s.model.trim())
             .apply()
     }
+
+    var onboarded: Boolean
+        get() = prefs.getBoolean("onboarded", false)
+        set(v) { prefs.edit().putBoolean("onboarded", v).apply() }
+}
+
+data class RecentReel(
+    val url: String,
+    val username: String?,
+    val caption: String?,
+    val thumbnailUrl: String?,
+    val place: String?,
+    val at: Long,
+)
+
+/** The last few reels you opened, so they're one tap away. */
+class RecentStore(context: Context) {
+    private val prefs = context.getSharedPreferences("recents", Context.MODE_PRIVATE)
+
+    fun load(): List<RecentReel> = runCatching {
+        val arr = JSONArray(prefs.getString("items", "[]"))
+        (0 until arr.length()).mapNotNull { i ->
+            val o = arr.optJSONObject(i) ?: return@mapNotNull null
+            RecentReel(
+                url = o.getString("url"),
+                username = o.str("username"),
+                caption = o.str("caption"),
+                thumbnailUrl = o.str("thumb"),
+                place = o.str("place"),
+                at = o.optLong("at"),
+            )
+        }
+    }.getOrDefault(emptyList())
+
+    fun add(current: List<RecentReel>, info: ReelInfo): List<RecentReel> {
+        val item = RecentReel(
+            url = info.url,
+            username = info.username,
+            caption = info.caption?.lineSequence()?.firstOrNull { it.isNotBlank() }?.take(120),
+            thumbnailUrl = info.thumbnailUrl,
+            place = info.location?.name,
+            at = System.currentTimeMillis(),
+        )
+        val list = (listOf(item) + current.filterNot { it.url == item.url }).take(12)
+        save(list)
+        return list
+    }
+
+    fun save(list: List<RecentReel>) {
+        val arr = JSONArray()
+        list.forEach {
+            arr.put(
+                JSONObject().put("url", it.url)
+                    .put("username", it.username ?: JSONObject.NULL)
+                    .put("caption", it.caption ?: JSONObject.NULL)
+                    .put("thumb", it.thumbnailUrl ?: JSONObject.NULL)
+                    .put("place", it.place ?: JSONObject.NULL)
+                    .put("at", it.at)
+            )
+        }
+        prefs.edit().putString("items", arr.toString()).apply()
+    }
 }
 
 /** Saved spots, kept as a small JSON file in app storage. */

@@ -57,7 +57,7 @@ object Actions {
     }
 
     fun translate(ctx: Context, text: String) =
-        openUrl(ctx, "https://translate.google.com/?sl=auto&tl=en&op=translate&text=${Uri.encode(text.take(1800))}")
+        openUrl(ctx, "https://translate.google.com/?sl=auto&tl=${Locales.language}&op=translate&text=${Uri.encode(text.take(1800))}")
 
     fun openApp(ctx: Context, pkg: String, fallbackUrl: String) {
         val launch = ctx.packageManager.getLaunchIntentForPackage(pkg)
@@ -76,6 +76,10 @@ object Actions {
             .addRequestHeader("Referer", "https://www.instagram.com/")
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "InstaMapper/$name.mp4")
+        if (android.os.Build.VERSION.SDK_INT < 29) {
+            @Suppress("DEPRECATION")
+            java.io.File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "InstaMapper").mkdirs()
+        }
         val dm = ctx.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
         dm.enqueue(req)
         return true

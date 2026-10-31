@@ -13,20 +13,41 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # Optional: use a private signing key stored in repository secrets.
+      - name: Load signing key from secrets
+        env:
+          KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          STORE_PW: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          KEY_PW: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            {
+              echo "SIGNING_STORE_FILE=$RUNNER_TEMP/release.keystore"
+              echo "SIGNING_STORE_PASSWORD=$STORE_PW"
+              echo "SIGNING_KEY_ALIAS=$KEY_ALIAS"
+              echo "SIGNING_KEY_PASSWORD=$KEY_PW"
+            } >> "$GITHUB_ENV"
+            echo "Using private signing key from secrets"
+          else
+            echo "No signing secret set; using the key in the repo"
+          fi
+
       - name: Build APK
         run: |
           chmod +x gradlew
           set -o pipefail
-          ./gradlew assembleDebug --stacktrace 2>&1 | tee build.log
+          ./gradlew assembleRelease --stacktrace 2>&1 | tee build.log
 
       - name: Report build errors
         if: failure()
@@ -34,12 +55,15 @@ jobs:
           if grep -qE "^e: " build.log; then
             grep -E "^e: " build.log | head -10 | sed 's/^/::error::/'
           else
-            msg=$(grep -A12 "What went wrong" build.log | head -25 | tr '\n' '|')
+            msg=$(grep -A14 "What went wrong" build.log | head -30 | tr '\n' '|')
             echo "::error::${msg:-Build failed, see log}"
+          fi
+          if [ -f app/build/outputs/mapping/release/missing_rules.txt ]; then
+            echo "::error::missing rules: $(tr '\n' '|' < app/build/outputs/mapping/release/missing_rules.txt)"
           fi
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk InstaMapper.apk
+        run: cp app/build/outputs/apk/release/app-release.apk InstaMapper.apk
 
       - uses: actions/upload-artifact@v4
         with:
@@ -53,6 +77,6 @@ jobs:
         run: |
           gh release delete latest --yes --cleanup-tag || true
           gh release create latest InstaMapper.apk \
-            --title "Insta Mapper (latest build)" \
-            --notes "Built automatically from commit ${GITHUB_SHA::7}. Download InstaMapper.apk on your phone and install it." \
+            --title "Insta Mapper v1.1.${GITHUB_RUN_NUMBER}" \
+            --notes "Download **InstaMapper.apk** on any Android phone (8.0+) and open it to install. Allow 'Install unknown apps' for your browser or file manager if asked. Built from ${GITHUB_SHA::7}." \
             --target "$GITHUB_SHA"

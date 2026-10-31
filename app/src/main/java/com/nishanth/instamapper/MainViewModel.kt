@@ -12,6 +12,9 @@ import com.nishanth.instamapper.data.ClimateService
 import com.nishanth.instamapper.data.InstagramFetcher
 import com.nishanth.instamapper.data.Place
 import com.nishanth.instamapper.data.PlaceResolver
+import com.nishanth.instamapper.data.RecentReel
+import com.nishanth.instamapper.data.RecentStore
+import com.nishanth.instamapper.data.Updates
 import com.nishanth.instamapper.data.ReelInfo
 import com.nishanth.instamapper.data.SeasonReport
 import com.nishanth.instamapper.data.SettingsRepo
@@ -34,6 +37,7 @@ enum class PlaceAction(val title: String) {
 class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val settingsRepo = SettingsRepo(app)
     private val spotStore = SpotStore(app)
+    private val recentStore = RecentStore(app)
 
     var settings by mutableStateOf(settingsRepo.load()); private set
     var spots by mutableStateOf(spotStore.load()); private set
@@ -61,6 +65,25 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     var showAudio by mutableStateOf(false)
     var toast by mutableStateOf<String?>(null)
 
+    var recents by mutableStateOf(recentStore.load()); private set
+    var showOnboarding by mutableStateOf(!settingsRepo.onboarded)
+    var update by mutableStateOf<Updates.Info?>(null); private set
+    var focusedSpotId by mutableStateOf<String?>(null)
+
+    init {
+        viewModelScope.launch { update = Updates.check() }
+    }
+
+    fun finishOnboarding() {
+        settingsRepo.onboarded = true
+        showOnboarding = false
+    }
+
+    fun removeRecent(r: RecentReel) {
+        recents = recents.filterNot { it.url == r.url }
+        recentStore.save(recents)
+    }
+
     private var requestId = 0
 
     fun analyze(text: String = input) {
@@ -75,7 +98,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             try {
                 val r = InstagramFetcher.fetch(text)
-                if (id == requestId) reel = r
+                if (id == requestId) {
+                    reel = r
+                    recents = recentStore.add(recents, r)
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -155,6 +181,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         )
         spots = listOf(spot) + spots.filterNot { it.reelUrl == spot.reelUrl && it.name == spot.name }
         spotStore.save(spots)
+        focusedSpotId = spot.id
         toast = "Saved \"${p.name}\" to My Spots"
     }
 

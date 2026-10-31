@@ -115,7 +115,7 @@ object ClimateService {
         val b = best.map { months[it - 1] }
         val sb = StringBuilder()
         sb.append("Best months: ").append(b.joinToString(", ") { it.name }).append(". ")
-        sb.append("Expect highs around ${b.minOf { it.avgHigh }.roundToInt()}–${b.maxOf { it.avgHigh }.roundToInt()}°C")
+        sb.append("Expect highs around ${Locales.temp(b.minOf { it.avgHigh })}–${Locales.temp(b.maxOf { it.avgHigh })}")
         sb.append(" and about ${b.map { it.rainyDays }.average().roundToInt()} rainy days a month.")
         if (avoid.isNotEmpty()) {
             val reasons = avoid.map { months[it - 1] }.joinToString(", ") { m ->
@@ -145,7 +145,7 @@ object ClimateService {
 
     private suspend fun aiAdvice(place: Place, months: List<MonthClimate>, best: List<Int>, s: AppSettings): String {
         val table = months.joinToString("\n") {
-            "${it.name}: high ${it.avgHigh.roundToInt()}°C, low ${it.avgLow.roundToInt()}°C, ${it.rainyDays.roundToInt()} rainy days"
+            "${it.name}: high ${Locales.temp(it.avgHigh)}, low ${Locales.temp(it.avgLow)}, ${it.rainyDays.roundToInt()} rainy days"
         }
         val prompt = """
             I want to visit ${place.name}${place.address?.let { " ($it)" } ?: ""}.
@@ -153,7 +153,7 @@ object ClimateService {
             $table
             Weather-based best months: ${best.joinToString { MONTHS[it - 1] }}.
 
-            In under 120 words of plain text (no markdown headers), tell me: the best months and why,
+            Reply in the language with code "${Locales.language}". In under 120 words of plain text (no markdown headers), tell me: the best months and why,
             months to avoid, the best time of day to go (light for photos, crowds), and any
             festivals, closures or seasonal highlights worth knowing. Be specific to this place.
         """.trimIndent()
