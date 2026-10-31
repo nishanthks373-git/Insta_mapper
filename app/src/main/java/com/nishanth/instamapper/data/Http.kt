@@ -42,17 +42,19 @@ object FallbackDns : Dns {
         )
     }
 
-    override fun lookup(hostname: String): List<InetAddress> = try {
-        Dns.SYSTEM.lookup(hostname)
-    } catch (e: UnknownHostException) {
-        for (r in resolvers) {
-            try {
-                val found = r.lookup(hostname)
-                if (found.isNotEmpty()) return found
-            } catch (_: Exception) {
+    override fun lookup(hostname: String): List<InetAddress> {
+        try {
+            return Dns.SYSTEM.lookup(hostname)
+        } catch (e: UnknownHostException) {
+            for (r in resolvers) {
+                try {
+                    val found = r.lookup(hostname)
+                    if (found.isNotEmpty()) return found
+                } catch (_: Exception) {
+                }
             }
+            throw e
         }
-        throw e
     }
 }
 
