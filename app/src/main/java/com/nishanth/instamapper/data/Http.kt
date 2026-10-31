@@ -125,6 +125,21 @@ object Http {
             }
         }
 
+    suspend fun postForm(url: String, form: String, headers: Map<String, String>): Result =
+        withContext(Dispatchers.IO) {
+            val req = Request.Builder().url(url)
+                .post(form.toRequestBody("application/x-www-form-urlencoded".toMediaType()))
+                .apply {
+                    header("User-Agent", BROWSER_UA)
+                    header("Accept-Language", "en-US,en;q=0.9")
+                    headers.forEach { (k, v) -> header(k, v) }
+                }
+                .build()
+            client.newCall(req).execute().use { resp ->
+                Result(resp.code, resp.body?.string().orEmpty(), resp.request.url.toString())
+            }
+        }
+
     suspend fun getJson(url: String, headers: Map<String, String> = emptyMap()): JSONObject {
         val r = get(url, headers)
         if (r.code !in 200..299) throw IOException("HTTP ${r.code}")

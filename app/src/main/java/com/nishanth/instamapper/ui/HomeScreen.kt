@@ -47,6 +47,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -180,6 +181,23 @@ fun HomeScreen(vm: MainViewModel) {
                             if (vm.errorIsNetwork) {
                                 TextButton(onClick = { vm.runDiagnostics() }) { Text("Check connection", fontWeight = FontWeight.Bold) }
                                 TextButton(onClick = { openAppSettings(ctx) }) { Text("App settings") }
+                            } else if (!vm.loggedIn) {
+                                TextButton(onClick = { vm.showLogin = true }) { Text("Sign in", fontWeight = FontWeight.Bold) }
+                            }
+                        }
+                        vm.errorDetails?.let { details ->
+                            var open by remember(details) { mutableStateOf(false) }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                TextButton(onClick = { open = !open }) { Text(if (open) "Hide details" else "Show details") }
+                                TextButton(onClick = { Actions.copy(ctx, "Insta Mapper details", details) }) { Text("Copy details") }
+                            }
+                            AnimatedVisibility(open) {
+                                Text(
+                                    details,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                )
                             }
                         }
                     }

@@ -18,6 +18,7 @@ import com.nishanth.instamapper.data.Updates
 import com.nishanth.instamapper.data.Diagnostics
 import com.nishanth.instamapper.data.NO_CONNECTION_HELP
 import com.nishanth.instamapper.data.NoConnectionException
+import com.nishanth.instamapper.data.ReelFetchException
 import com.nishanth.instamapper.data.isNetworkProblem
 import com.nishanth.instamapper.data.ReelInfo
 import com.nishanth.instamapper.data.SeasonReport
@@ -75,6 +76,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     var focusedSpotId by mutableStateOf<String?>(null)
 
     var errorIsNetwork by mutableStateOf(false); private set
+    var errorDetails by mutableStateOf<String?>(null); private set
     var diagnostics by mutableStateOf<Diagnostics.Report?>(null); private set
     var diagnosticsRunning by mutableStateOf(false); private set
     var showDiagnostics by mutableStateOf(false)
@@ -117,11 +119,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         loading = true
         error = null
         errorIsNetwork = false
+        errorDetails = null
         reel = null
         resetPlaceState()
         viewModelScope.launch {
             try {
-                val r = InstagramFetcher.fetch(text)
+                val r = InstagramFetcher.fetch(getApplication<Application>(), text)
                 if (id == requestId) {
                     reel = r
                     recents = recentStore.add(recents, r)
@@ -131,6 +134,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             } catch (e: Exception) {
                 if (id == requestId) {
                     errorIsNetwork = e is NoConnectionException || e.isNetworkProblem()
+                    errorDetails = (e as? ReelFetchException)?.details
                     error = if (errorIsNetwork && e !is NoConnectionException) NO_CONNECTION_HELP
                     else e.message ?: "Something went wrong"
                 }
